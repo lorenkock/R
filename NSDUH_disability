@@ -1,0 +1,179 @@
+library(survey); library(haven); library(tidyverse)
+library(interactions)
+
+# https://cran.r-project.org/web/packages/interactions/vignettes/interactions.html
+
+nsduh <- read_dta('/Users/lkock/downloads/nsduh_2015-2019.dta')
+saveRDS(nsduh, "/Users/lkock/Desktop/nsduh.RDS")
+nsduh <- readRDS("/Users/lkock/Desktop/nsduh.RDS")
+
+nsduh <- nsduh %>% subset(catage == 1 | catage == 2)
+
+# Recode disability variables
+nsduh <- nsduh %>%
+  mutate(vision = as.factor(case_when(diffsee == 1 ~ 1,
+                                      diffsee == 2 ~ 0,
+                                      diffsee == 94 | diffsee == 97 ~ 2))) %>%
+  mutate(hearing = as.factor(case_when(diffhear == 1 ~ 1,
+                                      diffhear == 2 ~ 0,
+                                      diffhear == 94 | diffhear == 97 ~ 2))) %>%
+  mutate(mobility = as.factor(case_when(diffwalk == 1 ~ 1,
+                                      diffwalk == 2 ~ 0,
+                                      diffwalk == 94 | diffwalk == 97 ~ 2))) %>%
+  mutate(il = as.factor(case_when(differand == 1 ~ 1,
+                                      differand == 2 ~ 0,
+                                      differand == 94 | differand == 97 ~ 2))) %>%
+  mutate(cog = as.factor(case_when(diffthink == 1 ~ 1,
+                                   diffthink == 2 ~ 0,
+                                   diffthink == 94 | diffthink == 97 ~ 2))) %>%
+  mutate(slfcr = as.factor(case_when(diffdress == 1 ~ 1,
+                                   diffdress == 2 ~ 0,
+                                   diffdress == 94 | diffdress == 97 ~ 2)))
+  
+table(nsduh$diffsee)
+table(nsduh$vision)
+
+# Any disability
+nsduh <- nsduh %>%
+  mutate(anydis = as.factor(case_when(vision == 0 & hearing == 0 & mobility == 0 & 
+                                         il == 0 & cog == 0 & slfcr == 0 ~ 0,
+                                       vision == 1 | hearing == 1 | mobility == 1 | 
+                                         il == 1 | cog == 1 | slfcr == 1 ~ 1,
+                                       vision == 2 & hearing == 2 & mobility == 2 & 
+                                         il == 2 & cog == 2 & slfcr == 2 ~ 2)))
+# Check with Jay how any disability coded in stata. 
+# Use of "or" operator might have introduced coding error?
+# In do file, coded as anyone with "0" coded as no disability, anyone with "1" coded
+# as "Any disability" and anyone with "2" coded as "DK/refused. Should it not be only 
+# those with "0" for all (i.e. & operator) are classified as 0 (no disability)?
+  
+nsduh <- nsduh %>% subset(anydis != 2)
+
+addmargins(table(nsduh$anydis))
+
+nsduh <- nsduh %>%
+  mutate(yearnum = case_when(year == 2015 ~ 1,
+                             year == 2016 ~ 2,
+                             year == 2017 ~ 3,
+                             year == 2018 ~ 4,
+                             year == 2019 ~ 5))
+
+
+nsduh_design <- svydesign(id = ~ verep,
+                          strata = ~ vestr,
+                          data = nsduh,
+                          weights = ~ analwc5,
+                          nest = TRUE)
+
+nsduh_design_1 <- nsduh_design %>% subset(catage == 1)
+nsduh_design_2 <- nsduh_design %>% subset(catage == 2)
+
+# Tobacco use 12-17 years old
+model1 <- svyglm(tobmon ~ anydis*yearnum, design=nsduh_design_1, family=poisson())
+summary(model1)
+
+plot1 <- probe_interaction(model1, pred = yearnum, modx = anydis, cond.int = TRUE,
+                  interval = TRUE,  jnplot = TRUE, ylab = "Year number", xlab = "Past month tobacco use")
+
+sim_slopes(model1, pred = yearnum, modx = anydis,
+           johnson_neyman = FALSE)
+
+
+plot1 <- interact_plot(model1, pred = yearnum, modx = anydis, interval = T,
+              int.type = "confidence", int.width = 0.95,
+              colors = c('orangered', 'midnightblue'),
+              main.title = "12-17 Year Old Subgroup",
+              x.label = '', y.label = 'Past month tobacco use',
+              legend.main = 'Any disability')
+
+# Tobacco use 18-25 years old
+model2 <- svyglm(tobmon ~ anydis*yearnum, design=nsduh_design_2, family=poisson())
+summary(model2)
+
+sim_slopes(model2, pred = yearnum, modx = anydis,
+           johnson_neyman = FALSE)
+
+plot2 <- interact_plot(model2, pred = yearnum, modx = anydis, interval = T,
+              int.type = "confidence", int.width = 0.95,
+              colors = c('orangered', 'midnightblue'),
+              main.title = "18-25 Year Old Subgroup",
+              x.label = 'Year number', y.label = 'Past month tobacco use',
+              legend.main = 'Any disability')
+
+library(ggpubr)
+tob <- ggarrange(plot1, plot2,
+          nrow = 2, common.legend = T)
+
+# Alcohol
+
+# Alcohol use 12-17 years old
+model3 <- svyglm(alcmon ~ anydis*yearnum, design=nsduh_design_1, family=poisson())
+summary(model3)
+
+#plot1 <- probe_interaction(model1, pred = yearnum, modx = anydis, cond.int = TRUE,
+ #                          interval = TRUE,  jnplot = TRUE, ylab = "Year number", xlab = "Past month tobacco use")
+
+sim_slopes(model3, pred = yearnum, modx = anydis,
+           johnson_neyman = FALSE)
+
+
+plot3 <- interact_plot(model3, pred = yearnum, modx = anydis, interval = T,
+                       int.type = "confidence", int.width = 0.95,
+                       colors = c('orangered', 'midnightblue'),
+                       main.title = "12-17 Year Old Subgroup",
+                       x.label = '', y.label = 'Past month alcohol use',
+                       legend.main = 'Any disability')
+
+# Alcohol use 18-25 years old
+model4 <- svyglm(alcmon ~ anydis*yearnum, design=nsduh_design_2, family=poisson())
+summary(model4)
+
+sim_slopes(model4, pred = yearnum, modx = anydis,
+           johnson_neyman = FALSE)
+
+plot4 <- interact_plot(model4, pred = yearnum, modx = anydis, interval = T,
+              int.type = "confidence", int.width = 0.95,
+              colors = c('orangered', 'midnightblue'),
+              main.title = "18-25 Year Old Subgroup",
+              x.label = 'Year number', y.label = 'Past month alcohol use',
+              legend.main = 'Any disability')
+
+alc <- ggarrange(plot3, plot4,
+          nrow = 2, common.legend = T)
+
+# Marijuana
+
+# MJ use 12-17 years old
+model5 <- svyglm(mrjmon ~ anydis*yearnum, design=nsduh_design_1, family=poisson())
+summary(model5)
+
+#plot1 <- probe_interaction(model1, pred = yearnum, modx = anydis, cond.int = TRUE,
+#                          interval = TRUE,  jnplot = TRUE, ylab = "Year number", xlab = "Past month tobacco use")
+
+sim_slopes(model5, pred = yearnum, modx = anydis,
+           johnson_neyman = FALSE)
+
+
+plot5 <- interact_plot(model5, pred = yearnum, modx = anydis, interval = T,
+                       int.type = "confidence", int.width = 0.95,
+                       colors = c('orangered', 'midnightblue'),
+                       main.title = "12-17 Year Old Subgroup",
+                       x.label = '', y.label = 'Past month marijuana use',
+                       legend.main = 'Any disability')
+
+# MJ use 18-25 years old
+model6 <- svyglm(mrjmon ~ anydis*yearnum, design=nsduh_design_2, family=poisson())
+summary(model6)
+
+sim_slopes(model6, pred = yearnum, modx = anydis,
+           johnson_neyman = FALSE)
+
+plot6 <- interact_plot(model6, pred = yearnum, modx = anydis, interval = T,
+              int.type = "confidence", int.width = 0.95,
+              colors = c('orangered', 'midnightblue'),
+              main.title = "18-25 Year Old Subgroup",
+              x.label = 'Year number', y.label = 'Past month marijuana use',
+              legend.main = 'Any disability')
+
+mj <- ggarrange(plot5, plot6,
+          nrow = 2, common.legend = T)
