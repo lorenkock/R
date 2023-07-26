@@ -57,11 +57,9 @@ table(df2$R05R_A_CUR_ESTD_CIGS)
 
 df2 <- df2 %>% 
   mutate(ands_current = case_when(R05R_A_CUR_ESTD_EPRODS == "(1) 1 = Yes" |
-                     R05R_A_CUR_ESTD_SNUS == "(1) 1 = Yes" |
-                     R05R_A_CUR_ESTD_SMKLS == "(1) 1 = Yes" ~ "Current establised ANDS use",
+                     R05R_A_CUR_ESTD_SNUS == "(1) 1 = Yes" ~ "Current establised ANDS use",
                    R05R_A_CUR_ESTD_EPRODS == "(2) 2 = No" |
-                     R05R_A_CUR_ESTD_SNUS == "(2) 2 = No" |
-                     R05R_A_CUR_ESTD_SMKLS == "(2) 2 = No" ~ "NOT current establised ANDS use"))
+                     R05R_A_CUR_ESTD_SNUS == "(2) 2 = No" ~ "NOT current establised ANDS use"))
 
 table(df2$ands_current)
 attributes(df2$R05R_A_EVR_EPRODS)
@@ -74,11 +72,9 @@ attributes(df2$R05R_A_EVR_EPRODS)
 
 df2 <- df2 %>% 
   mutate(ands_ever = case_when(R05R_A_EVR_EPRODS == "(1) 1 = Yes" |
-                                    R05R_A_EVR_SNUS == "(1) 1 = Yes" |
-                                    R05R_A_EVR_SMKLS == "(1) 1 = Yes" ~ "Ever ANDS use",
+                                    R05R_A_EVR_SNUS == "(1) 1 = Yes" ~ "Ever ANDS use",
                                   R05R_A_EVR_EPRODS == "(2) 2 = No" |
-                                    R05R_A_EVR_SNUS == "(2) 2 = No" |
-                                    R05R_A_EVR_SMKLS == "(2) 2 = No" ~ "Never ANDS use"))
+                                    R05R_A_EVR_SNUS == "(2) 2 = No" ~ "Never ANDS use"))
 
 table(df2$ands_ever)
 
